@@ -1,0 +1,42 @@
+[
+  {
+    "synthetic": true,
+    "data_type": "synthetic_demo",
+    "forum": "CryptoBazaar Training Marketplace",
+    "thread_id": "DEMO-CB-001",
+    "thread_title": "Fabricated financial-data analysis package",
+    "author": "@demo_crimson_analyst",
+    "author_pgp": "DEMO_PGP_FINGERPRINT_CRIMSON_NOT_VALID",
+    "timestamp": "2026-09-05T18:44:22Z",
+    "content": "DEMO ONLY: Fabricated records for Aurora Community Bank, an organization that does not exist. No personal or financial data is present. Invalid payment identifiers: DEMO_BTC_WALLET_CRIMSON_PRIMARY_NOT_VALID and DEMO_ETH_WALLET_CRIMSON_SECONDARY_NOT_VALID. Contact crimson-analyst@example.invalid.",
+    "replies": []
+  },
+  {
+    "synthetic": true,
+    "data_type": "synthetic_demo",
+    "forum": "CryptoBazaar Training Marketplace",
+    "thread_id": "DEMO-CB-002",
+    "thread_title": "Synthetic traffic-load investigation",
+    "author": "@demo_phantom_analyst",
+    "timestamp": "2026-09-07T11:30:55Z",
+    "content": "DEMO ONLY: Inert traffic-generator telemetry for service-bravo.example.invalid. No external infrastructure or operational service is referenced.",
+    "replies": [
+      {
+        "author": "@demo_shadow_operator",
+        "timestamp": "2026-09-07T12:15:33Z",
+        "content": "Confirmed for the isolated training environment only."
+      }
+    ]
+  },
+  {
+    "synthetic": true,
+    "data_type": "synthetic_demo",
+    "forum": "CryptoBazaar Training Marketplace",
+    "thread_id": "DEMO-CB-003",
+    "thread_title": "Synthetic access-broker correlation exercise",
+    "author": "@demo_nullroot_analyst",
+    "timestamp": "2026-09-08T08:15:00Z",
+    "content": "DEMO ONLY: Fabricated access artifacts for Northstar Logistics Lab, an organization that does not exist. No credentials, tokens, or proof-of-access data are included. Invalid BTC identifier: DEMO_BTC_WALLET_NULLROOT_PRIMARY_NOT_VALID.",
+    "replies": []
+  }
+]

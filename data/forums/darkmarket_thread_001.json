@@ -1,0 +1,65 @@
+[
+  {
+    "synthetic": true,
+    "data_type": "synthetic_demo",
+    "forum": "DarkMarket Training Forum",
+    "thread_id": "DEMO-DM-001",
+    "thread_title": "Synthetic ransomware-response exercise",
+    "author": "@demo_shadow_operator",
+    "author_pgp": "DEMO_PGP_FINGERPRINT_SHADOW_NOT_VALID",
+    "timestamp": "2026-09-06T14:22:31Z",
+    "content": "DEMO ONLY: This is a fabricated incident against Northstar Research Lab, an organization that does not exist. Use PGP marker DEMO_PGP_FINGERPRINT_SHADOW_NOT_VALID and invalid BTC identifier DEMO_BTC_WALLET_SHADOW_PRIMARY_NOT_VALID. Contact shadow-operator@example.invalid.",
+    "replies": [
+      {
+        "author": "@demo_crimson_analyst",
+        "timestamp": "2026-09-06T15:01:12Z",
+        "content": "Synthetic exercise confirmation. No real records or infrastructure are involved. Contact crimson-analyst@example.invalid."
+      },
+      {
+        "author": "@demo_phantom_analyst",
+        "timestamp": "2026-09-06T15:45:08Z",
+        "content": "Lab traffic simulation active against service-alpha.example.invalid."
+      }
+    ]
+  },
+  {
+    "synthetic": true,
+    "data_type": "synthetic_demo",
+    "forum": "DarkMarket Training Forum",
+    "thread_id": "DEMO-DM-002",
+    "thread_title": "Synthetic vulnerability triage exercise",
+    "author": "@demo_zerobyte_operator",
+    "author_pgp": "DEMO_PGP_FINGERPRINT_ZERO_NOT_VALID",
+    "timestamp": "2026-09-07T09:15:44Z",
+    "content": "DEMO ONLY: Fabricated vulnerability discussion for example.invalid systems. Contact @demo_zerobyte_operator. Invalid payment identifiers: DEMO_BTC_WALLET_ZERO_PRIMARY_NOT_VALID and DEMO_ETH_WALLET_ZERO_SECONDARY_NOT_VALID.",
+    "replies": [
+      {
+        "author": "@demo_nullroot_analyst",
+        "timestamp": "2026-09-07T10:22:18Z",
+        "content": "Interested in combining this with the fictional Northstar VPN lab scenario."
+      }
+    ]
+  },
+  {
+    "synthetic": true,
+    "data_type": "synthetic_demo",
+    "forum": "DarkMarket Training Forum",
+    "thread_id": "DEMO-DM-003",
+    "thread_title": "Synthetic analyst persona directory",
+    "author": "@demo_forum_admin",
+    "timestamp": "2026-09-08T02:30:00Z",
+    "content": "DEMO ONLY: Every persona and identifier in this directory is fictional. Contact forum-admin@example.invalid for exercise support.",
+    "replies": [
+      {
+        "author": "@demo_ghost_analyst",
+        "timestamp": "2026-09-08T03:15:22Z",
+        "content": "Synthetic persona verification. PGP marker DEMO_PGP_FINGERPRINT_GHOST_NOT_VALID. Invalid BTC identifier DEMO_BTC_WALLET_GHOST_PRIMARY_NOT_VALID."
+      },
+      {
+        "author": "@demo_vortex_analyst",
+        "timestamp": "2026-09-08T04:00:11Z",
+        "content": "Fabricated data-broker scenario. Contact vortex-analyst@example.invalid. Invalid XMR identifier DEMO_XMR_WALLET_VORTEX_PRIMARY_NOT_VALID."
+      }
+    ]
+  }
+]

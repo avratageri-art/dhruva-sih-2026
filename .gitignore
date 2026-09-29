@@ -1,0 +1,59 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.venv/
+venv/
+env/
+
+# Node / Vite
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Runtime data and generated artifacts
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+mlruns/
+logs/
+*.log
+reports/*
+!reports/.gitkeep
+scratch/
+backend/tor/tor_data/
+data/crawled_intel.json
+data/robin_jobs.json
+backend/data/robin_jobs.json
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+~$*

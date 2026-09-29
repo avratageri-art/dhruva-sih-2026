@@ -1,0 +1,5 @@
+DataDirectory ./tor_data
+GeoIPFile ./geoip
+GeoIPv6File ./geoip6
+SocksPort 127.0.0.1:9050
+Log notice stdout
