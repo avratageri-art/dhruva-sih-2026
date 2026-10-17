@@ -130,6 +130,15 @@ export default function Reports() {
           threat_actor_types: [profile.category?.toLowerCase().replace(' ', '-') || 'unknown'],
           labels: ['threat-intelligence'],
           confidence: Math.round((profile.confidence || 0) * 100),
+          x_dhruva_assessment: assessment ? {
+            decision: assessment.decision || assessment.evidence?.decision || 'ABSTAIN',
+            abstain_reason: assessment.abstain_reason || assessment.evidence?.abstain_reason || null,
+            confidence_band: assessment.confidence_band || assessment.evidence?.confidence_band || assessment.confidence_level,
+            support: assessment.support ?? assessment.evidence?.support ?? 0,
+            contradiction: assessment.contradiction ?? assessment.evidence?.contradiction ?? 0,
+            gates_triggered: assessment.gates_triggered || assessment.evidence?.gates_triggered || [],
+            config_version: assessment.evidence?.config_version || null,
+          } : null,
         },
         ...profile.handles.map(h => ({
           type: 'identity',

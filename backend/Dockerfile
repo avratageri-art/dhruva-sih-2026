@@ -19,6 +19,7 @@ COPY ai ./ai
 COPY graph ./graph
 COPY scripts ./scripts
 COPY data ./data
+COPY config ./config
 
 # Set python path
 ENV PYTHONPATH=/app

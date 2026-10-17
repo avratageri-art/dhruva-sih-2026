@@ -1,0 +1,47 @@
+{
+  "version": "1.0.0",
+  "thresholds": {
+    "minimum_independent_origins": 2,
+    "minimum_support": 0.8,
+    "contested_ratio": 0.5,
+    "dominant_evidence": 0.55,
+    "high_confidence": 1.8,
+    "medium_confidence": 1.0,
+    "near_duplicate_similarity": 0.88,
+    "minimum_stylometry_characters": 250,
+    "common_identifier_personas": 4
+  },
+  "base_weights": {
+    "handle": 0.65,
+    "pgp": 1.2,
+    "wallet": 1.0,
+    "infra": 0.65,
+    "stylometry": 0.5,
+    "temporal": 0.45,
+    "semantic": 0.35
+  },
+  "freshness_half_life_days": {
+    "handle": 730,
+    "pgp": 1095,
+    "wallet": 730,
+    "infra": 90,
+    "stylometry": 365,
+    "temporal": 180,
+    "semantic": 365
+  },
+  "shared_infrastructure_cap": 0.2,
+  "weak_contradiction_weight": 0.45,
+  "strong_contradiction_weight": 1.2,
+  "known_shared_services": [
+    "cloudflare",
+    "akamai",
+    "fastly",
+    "amazonaws.com",
+    "azurewebsites.net",
+    "github.io",
+    "tor-exit",
+    "default-nginx",
+    "default-apache"
+  ],
+  "service_wallet_labels": ["exchange", "mixer", "service", "donation"]
+}

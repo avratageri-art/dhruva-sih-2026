@@ -27,6 +27,18 @@ jobs:
         env:
           PYTHONPATH: backend
         run: python -m pytest backend/tests -q
+      - name: Generate synthetic reliability metrics
+        continue-on-error: true
+        run: python scripts/evaluate.py
+      - name: Upload reliability metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reliability-benchmark
+          path: |
+            data/evaluation/results.json
+            docs/evaluation/results.md
+          if-no-files-found: warn
 
   frontend:
     name: Frontend build

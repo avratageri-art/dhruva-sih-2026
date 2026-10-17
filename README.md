@@ -14,6 +14,16 @@ DHRUVA is an AI-assisted dark-web intelligence platform for evidence-backed rela
 
 The repository contains a React dashboard, a FastAPI service, SQLAlchemy data models, collection adapters, local demonstration data, graph helpers, and an attribution engine. The default non-Docker path uses SQLite. Docker Compose provisions PostgreSQL and Neo4j alongside the application, although the current API primarily builds graph responses from relational records; direct Neo4j helpers exist but are not the main request path.
 
+| Capability | Status |
+|---|---|
+| Atomic evidence, copy lineage, rarity/freshness weighting | Implemented |
+| Enforced abstention and strong-contradiction veto | Implemented |
+| Per-item breakdown, gates, and similarity-baseline toggle | Implemented |
+| Seeded synthetic benchmark and component ablations | Implemented |
+| Wallet validation/classification | Prototype (local label list) |
+| API-key analyst/admin roles and append-only override audit | Prototype (opt-in) |
+| Live blockchain enrichment, Neo4j request path, JWT/SSO | Planned |
+
 ## Problem Statement
 
 Threat-actor activity is fragmented across handles, posts, wallets, PGP identifiers, domains, hidden services, and time. Analysts need a way to organize those observations, preserve their source context, compare multiple signals, and expose uncertainty without turning similarity into an unsupported identity claim.
@@ -90,7 +100,7 @@ The active backend assessment engine uses a weighted fusion of:
 | Handle | Jaro-Winkler-style similarity across observed handles |
 | Graph | Jaccard-style overlap over shared infrastructure/entity values |
 
-The result is stored as an `AttributionAssessment` with a score, confidence label, explanation, evidence JSON, and a field for negative evidence. Current on-demand assessments initialize negative evidence as empty; demo/seeded assessments may contain contradictory evidence.
+This fusion is retained as **Baseline A**. The live reliability decision stores atomic supporting and contradicting evidence, collapses mirrored content into one lineage origin, applies rarity/quality/freshness factors, and records every triggered gate. Shared infrastructure cannot support a link by itself.
 
 ## Attribution Assessment
 
@@ -98,7 +108,15 @@ DHRUVA performs **AI-assisted evidence correlation and attribution assessment**.
 
 ## Uncertainty & Abstention
 
-The UI distinguishes confidence levels and can display negative/conflicting evidence. The system does not yet implement a dedicated, enforced abstention state. Analysts should treat low-evidence, conflicting, model-unavailable, or provenance-poor results as insufficient and abstain from attribution. Formal evidence sufficiency thresholds and automatic abstention are planned.
+The API enforces `SUPPORTED` or `ABSTAIN` and always returns `gates_triggered`. Abstention reasons are `INSUFFICIENT`, `CONTESTED`, `TAINTED`, and the more specific `SHARED_INFRA_ONLY`. The dashboard shows the decision, per-item arithmetic, copy lineage, three gate indicators, and a Baseline A toggle. Overrides require a justification and are appended to the assessment audit log; they do not rewrite the engine result. See [the reliability-engine design](docs/architecture/reliability-engine.md).
+
+## Judge quick start (60 seconds)
+
+```bash
+python scripts/evaluate.py
+```
+
+Expected: a baseline-versus-engine table, per-failure-family false links, and generated JSON/Markdown under `data/evaluation/` and `docs/evaluation/`. This dataset is synthetic and measures designed failure modes, not real-world attribution accuracy. For the live path, start the stack, open **Persona Analysis**, run a pair, inspect the gate panel and evidence lineage, then toggle **Baseline A**.
 
 ## Technology Stack
 
@@ -185,6 +203,7 @@ For the manual Python/Node workflow, see [local setup](docs/development/local-se
 | `MODEL_PATH` | Training script | Local model output/input path |
 | `MLFLOW_TRACKING_URI` | Training script | MLflow tracking store |
 | `API_URL` | Scripts | Backend base URL for integration scripts |
+| `ANALYST_API_KEY` / `ADMIN_API_KEY` | Backend | Optional server-side API keys and roles; empty only for local demo mode |
 | `TOR_SOCKS_HOST` / `TOR_SOCKS_PORT` | Collection | Authorized Tor SOCKS5 proxy location |
 | `ROBIN_SEARCH_ENGINES_JSON` | Robin search | Optional JSON list of analyst-authorized `.onion` search endpoints; empty by default |
 | `DEEPDARKCTI_REFRESH_INTERVAL` | Collection | Catalogue refresh interval in seconds |

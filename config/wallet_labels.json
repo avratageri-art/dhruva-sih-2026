@@ -1,0 +1,7 @@
+{
+  "labels": {
+    "1BoatSLRHtKNngkdXEeobR76b53LETtpyT": "donation",
+    "0x0000000000000000000000000000000000000000": "service"
+  },
+  "note": "Prototype labels for deterministic demos. Extend only from a reviewed, cited source; labels are not proof of ownership."
+}

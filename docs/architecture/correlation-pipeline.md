@@ -28,8 +28,8 @@ flowchart LR
 | Semantic | Mean sentence-transformer embeddings and cosine similarity | Topic similarity is not identity similarity |
 | Temporal | Timeline ordering and activity distributions | Co-occurrence alone does not establish a relationship |
 
-The active assessment service weights semantic, stylometric, behavioral, handle, and graph signals. It stores an overall score, confidence label, explanation, and per-signal evidence JSON. The source code, rather than this document, remains authoritative for exact weights.
+The original weighted semantic, stylometric, behavioral, handle, and graph fusion remains available as a comparison baseline. The active decision layer converts observations into atomic evidence, collapses copied lineage, applies rarity/quality/freshness weighting, evaluates contradictions and deception flags, and either supports the link or abstains. Exact parameters are versioned in `config/reliability.yaml`.
 
 ## Supporting and contradicting evidence
 
-Positive subsystem scores and shared indicators are supporting evidence. The schema and reports UI can retain and display negative evidence, but newly generated assessments currently initialize that field as empty. Automatic contradiction discovery and an enforced abstention state are not implemented. Analysts must inspect provenance, seek independent evidence, and leave a conclusion unresolved when evidence is sparse or contradictory.
+New assessments persist both supporting and contradicting evidence. Strong contradictions veto a link; credible conflict yields `CONTESTED`; sparse support yields `INSUFFICIENT`; and deception risk yields `TAINTED`. Shared infrastructure alone is explicitly blocked. See [reliability engine](reliability-engine.md) for the decision contract and arithmetic.

@@ -113,8 +113,21 @@ function EvidenceBar({ field, value }) {
 
 // ── Full assessment result card ─────────────────────────────────────────────
 function AssessmentCard({ assessment }) {
+  const [showBaseline, setShowBaseline] = useState(false);
   if (!assessment) return null;
   const evidence = assessment.evidence || {};
+  const decision = assessment.decision || evidence.decision || 'ABSTAIN';
+  const abstainReason = assessment.abstain_reason || evidence.abstain_reason;
+  const items = assessment.items || evidence.items || [];
+  const gates = assessment.gates_triggered || evidence.gates_triggered || [];
+  const baseline = assessment.baseline || evidence.baseline;
+  const displayScore = showBaseline && baseline ? baseline.score : assessment.score;
+  const originGroups = items.reduce((groups, item) => {
+    const key = item.origin_id || item.evidence_id;
+    groups[key] = groups[key] || [];
+    groups[key].push(item);
+    return groups;
+  }, {});
 
   const negSignals = [];
   if (assessment.explanation?.toLowerCase().includes('timezone')) negSignals.push('Significant timezone offset detected');
@@ -127,10 +140,25 @@ function AssessmentCard({ assessment }) {
   if ((evidence.graph_correlation || 0) > 0) posSignals.push('Shared infrastructure indicators found');
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: '20px' }}>
+    <div>
+      <div className="glass-card" style={{ padding: '14px 18px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+        <span className={`badge ${decision === 'SUPPORTED' ? 'badge-medium' : 'badge-high'}`} style={{ fontSize: '0.78rem' }}>
+          {decision}{abstainReason ? ` · ${abstainReason}` : ''}
+        </span>
+        <span style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
+          {evidence.independent_origins ?? '—'} independent origins · support {(assessment.support ?? evidence.support ?? 0).toFixed(3)} · contradiction {(assessment.contradiction ?? evidence.contradiction ?? 0).toFixed(3)}
+        </span>
+        {baseline && (
+          <button className="btn" onClick={() => setShowBaseline(value => !value)} style={{ marginLeft: 'auto', padding: '6px 12px', fontSize: '0.72rem' }}>
+            {showBaseline ? 'Show reliability decision' : `Compare Baseline A (${Math.round(baseline.score)}%)`}
+          </button>
+        )}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: '20px' }}>
       {/* Left: Meter */}
       <div className="glass-card" style={{ padding: '30px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
-        <ScoreMeter score={assessment.score} aiPowered={evidence.ai_powered} />
+        <ScoreMeter score={displayScore} aiPowered={evidence.ai_powered} />
+        {showBaseline && <span className="badge badge-high">SIMILARITY-ONLY BASELINE</span>}
         <div style={{
           padding: '10px 14px', background: 'rgba(99,102,241,0.06)',
           borderRadius: '8px', border: '1px solid rgba(99,102,241,0.15)',
@@ -185,6 +213,24 @@ function AssessmentCard({ assessment }) {
           </div>
         </div>
 
+        {/* Reliability gates */}
+        <div className="glass-card" style={{ padding: '20px' }}>
+          <div className="section-label" style={{ marginBottom: '12px' }}>Reliability Gates</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+            {[
+              ['Independent support', gates.some(g => g.includes('INDEPENDENT') || g.includes('SUPPORT'))],
+              ['Contradiction', gates.some(g => g.includes('CONTRADICTION'))],
+              ['Deception risk', gates.includes('DECEPTION_RISK')],
+            ].map(([label, triggered]) => (
+              <div key={label} style={{ border: `1px solid ${triggered ? 'rgba(239,68,68,.4)' : 'rgba(34,197,94,.3)'}`, background: triggered ? 'rgba(239,68,68,.08)' : 'rgba(34,197,94,.06)', borderRadius: '7px', padding: '9px' }}>
+                <div style={{ color: triggered ? '#ef4444' : '#22c55e', fontSize: '0.74rem', fontWeight: 600 }}>{triggered ? 'TRIGGERED' : 'PASS'}</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.67rem', marginTop: '3px' }}>{label}</div>
+              </div>
+            ))}
+          </div>
+          {gates.length > 0 && <div style={{ marginTop: '10px', fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--text-muted)' }}>{gates.join(' · ')}</div>}
+        </div>
+
         {/* Explanation */}
         <div className="glass-card" style={{ padding: '16px' }}>
           <div className="section-label" style={{ marginBottom: '8px' }}>Engine Explanation</div>
@@ -192,6 +238,31 @@ function AssessmentCard({ assessment }) {
             {assessment.explanation}
           </p>
         </div>
+      </div>
+      </div>
+
+      {/* Atomic evidence breakdown */}
+      <div className="glass-card" style={{ padding: '20px', marginTop: '16px', overflowX: 'auto' }}>
+        <div className="section-label" style={{ marginBottom: '12px' }}>Atomic Evidence Breakdown</div>
+        {items.length === 0 ? <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>No reliability evidence items were produced.</span> : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>
+            <thead><tr style={{ color: 'var(--text-muted)', textAlign: 'left' }}>
+              {['Type', 'Source', 'Lineage', 'Independence', 'Rarity', 'Freshness', 'Weight', 'Direction'].map(head => <th key={head} style={{ padding: '7px', borderBottom: '1px solid var(--border-subtle)' }}>{head}</th>)}
+            </tr></thead>
+            <tbody>{items.map(item => (
+              <tr key={item.evidence_id} style={{ color: 'var(--text-secondary)' }}>
+                <td style={{ padding: '7px' }}>{item.type}</td>
+                <td style={{ padding: '7px', fontFamily: 'var(--font-mono)' }}>{item.source_id}</td>
+                <td style={{ padding: '7px', fontFamily: 'var(--font-mono)' }}>{item.is_derived ? `copy of ${item.origin_id}` : `origin (${(originGroups[item.origin_id] || []).length - 1} copies)`}</td>
+                <td style={{ padding: '7px' }}>{Number(item.independence).toFixed(2)}</td>
+                <td style={{ padding: '7px' }}>{Number(item.rarity).toFixed(2)}</td>
+                <td style={{ padding: '7px' }}>{Number(item.freshness).toFixed(2)}</td>
+                <td style={{ padding: '7px', fontWeight: 600 }}>{Number(item.weight).toFixed(3)}</td>
+                <td style={{ padding: '7px', color: item.direction === 'contradict' ? '#ef4444' : '#22c55e' }}>{item.direction}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
       </div>
     </div>
   );
@@ -253,8 +324,7 @@ export default function PersonaAnalysis() {
       <div style={{ marginBottom: '24px' }}>
         <h1 style={{ margin: 0 }}>Persona Analysis</h1>
         <p style={{ color: 'var(--text-secondary)', margin: '6px 0 0 0' }}>
-          Real AI attribution powered by <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.88em', color: 'var(--accent-primary)' }}>sentence-transformers/all-MiniLM-L6-v2</code>,
-          classical stylometry, temporal behaviour analysis and Jaro-Winkler entity resolution.
+          Reliability-gated attribution with independent evidence, rarity, contradiction vetoes, deception flags and an explainable similarity baseline.
         </p>
       </div>
 

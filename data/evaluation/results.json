@@ -1,0 +1,28 @@
+{
+  "benchmark": {"seed": 26151, "cases": 60, "synthetic": true},
+  "baseline": {"precision": 0.2182, "recall": 0.7059, "coverage": 0.9167, "abstention_rate": 0.0833, "false_link_rate": 1.0, "true_positives": 12, "false_positives": 43},
+  "reliability_engine": {"precision": 1.0, "recall": 0.7059, "coverage": 0.2, "abstention_rate": 0.8, "false_link_rate": 0.0, "true_positives": 12, "false_positives": 0},
+  "per_family": {
+    "common_handle": {"count": 7, "baseline_false_links": 7, "engine_false_links": 0, "engine_supported": 0, "dominant_reason": "INSUFFICIENT"},
+    "conflicting": {"count": 7, "baseline_false_links": 7, "engine_false_links": 0, "engine_supported": 0, "dominant_reason": "CONTESTED"},
+    "copied_posts": {"count": 7, "baseline_false_links": 7, "engine_false_links": 0, "engine_supported": 0, "dominant_reason": "INSUFFICIENT"},
+    "impersonation": {"count": 7, "baseline_false_links": 7, "engine_false_links": 0, "engine_supported": 0, "dominant_reason": "TAINTED"},
+    "same_community_writing": {"count": 7, "baseline_false_links": 7, "engine_false_links": 0, "engine_supported": 0, "dominant_reason": "INSUFFICIENT"},
+    "shared_hosting": {"count": 8, "baseline_false_links": 8, "engine_false_links": 0, "engine_supported": 0, "dominant_reason": "SHARED_INFRA_ONLY"},
+    "true_strong": {"count": 12, "baseline_false_links": 0, "engine_false_links": 0, "engine_supported": 12, "dominant_reason": null},
+    "true_weak": {"count": 5, "baseline_false_links": 0, "engine_false_links": 0, "engine_supported": 0, "dominant_reason": "INSUFFICIENT"}
+  },
+  "precision_coverage_curve": [
+    {"minimum_support": 0.8, "coverage": 0.2, "precision": 1.0},
+    {"minimum_support": 1.2, "coverage": 0.2, "precision": 1.0},
+    {"minimum_support": 1.4, "coverage": 0.15, "precision": 1.0},
+    {"minimum_support": 1.55, "coverage": 0.1, "precision": 1.0},
+    {"minimum_support": 1.7, "coverage": 0.05, "precision": 1.0}
+  ],
+  "ablations": {
+    "without_independence": {"precision": 0.6316, "recall": 0.7059, "coverage": 0.3167, "abstention_rate": 0.6833, "false_link_rate": 0.1628, "true_positives": 12, "false_positives": 7},
+    "without_rarity": {"precision": 0.6316, "recall": 0.7059, "coverage": 0.3167, "abstention_rate": 0.6833, "false_link_rate": 0.1628, "true_positives": 12, "false_positives": 7},
+    "without_shared_discount": {"precision": 0.6, "recall": 0.7059, "coverage": 0.3333, "abstention_rate": 0.6667, "false_link_rate": 0.186, "true_positives": 12, "false_positives": 8},
+    "without_veto": {"precision": 0.6316, "recall": 0.7059, "coverage": 0.3167, "abstention_rate": 0.6833, "false_link_rate": 0.1628, "true_positives": 12, "false_positives": 7}
+  }
+}

@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     MODEL_PATH: str = "./models/baseline"
     MLFLOW_TRACKING_URI: str = "sqlite:///mlflow.db"
     API_URL: str = "http://localhost:8000"
+    # Optional server-side API keys. When ANALYST_API_KEY is empty, auth is
+    # disabled for the local-only demo. Never expose these as VITE_* values.
+    ANALYST_API_KEY: str = ""
+    ADMIN_API_KEY: str = ""
 
     # Tor SOCKS5 Proxy Configuration (Single Source of Truth)
     TOR_SOCKS_HOST: str = "127.0.0.1"

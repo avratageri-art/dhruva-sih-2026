@@ -1,4 +1,6 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request
+from fastapi.responses import JSONResponse
+import secrets
 from typing import Optional
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
@@ -6,7 +8,13 @@ from app.api import actors, ingest, analysis, crawler, alerts, infra, deepdarkct
 from app.database import engine, get_db
 from sqlalchemy.orm import Session
 from app.models import actor, intelligence
-from app.models.analysis import Source, Relationship, AttributionAssessment
+from app.models.analysis import (
+    AssessmentAuditLog,
+    AttributionAssessment,
+    EvidenceItem,
+    Relationship,
+    Source,
+)
 
 # Create tables if not using Alembic currently
 actor.Base.metadata.create_all(bind=engine)
@@ -28,6 +36,33 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def api_key_roles(request: Request, call_next):
+    """Optional API-key authentication with analyst/admin roles.
+
+    Local demo mode remains frictionless when ANALYST_API_KEY is unset. Once
+    configured, every /api request requires X-API-Key; collection mutations
+    additionally require the admin key.
+    """
+    role = "demo"
+    if request.url.path.startswith("/api") and request.method != "OPTIONS" and settings.ANALYST_API_KEY:
+        supplied = request.headers.get("X-API-Key", "")
+        if settings.ADMIN_API_KEY and secrets.compare_digest(supplied, settings.ADMIN_API_KEY):
+            role = "admin"
+        elif secrets.compare_digest(supplied, settings.ANALYST_API_KEY):
+            role = "analyst"
+        else:
+            return JSONResponse(status_code=401, content={"detail": "Missing or invalid API key"})
+
+        admin_prefixes = ("/api/ingest", "/api/crawler", "/api/deepdarkcti")
+        if request.method not in ("GET", "HEAD") and request.url.path.startswith(admin_prefixes) and role != "admin":
+            return JSONResponse(status_code=403, content={"detail": "Admin role required"})
+    request.state.role = role
+    response = await call_next(request)
+    response.headers["X-DHRUVA-Role"] = role
+    return response
 
 app.include_router(actors.router, prefix="/api/actors")
 app.include_router(ingest.router, prefix="/api/ingest")
@@ -138,6 +173,7 @@ def model_status():
     """
     try:
         from app.services.ai.attribution import _get_model, _MODEL_NAME, WEIGHTS
+        from app.services.ai.reliability import reliability_engine
         model = _get_model()
         return {
             "model_name":  _MODEL_NAME,
@@ -150,6 +186,12 @@ def model_status():
                 {"name": "Handle Overlap",        "weight": WEIGHTS["handle"],      "method": "Jaro-Winkler string similarity"},
                 {"name": "Graph Correlation",     "weight": WEIGHTS["graph"],       "method": "Jaccard on shared infrastructure"},
             ],
+            "decision_layer": {
+                "name": "ReliabilityEngine",
+                "config_version": reliability_engine.config["version"],
+                "outputs": ["SUPPORTED", "ABSTAIN:INSUFFICIENT", "ABSTAIN:CONTESTED", "ABSTAIN:TAINTED"],
+                "baseline": "weighted_similarity",
+            },
             "status": "ready" if model is not None else "not_loaded_yet",
         }
     except Exception as e:

@@ -1,5 +1,11 @@
 # Data Handling
 
+## API access and accountability
+
+Local demo mode leaves `ANALYST_API_KEY` empty. Any non-demo deployment must set distinct `ANALYST_API_KEY` and `ADMIN_API_KEY` server-side and send the selected value in `X-API-Key`. Analyst credentials can read intelligence and run assessments; collection/ingestion mutations require the admin role. Keys must never be placed in a `VITE_*` variable or committed to the repository.
+
+Every generated assessment and every analyst override is appended to `assessment_audit_log`. Overrides require a written justification and do not replace the engine's original decision, evidence items, or triggered gates.
+
 ## Data Categories
 
 DHRUVA models posts and observations; aliases/handles; email, PGP, wallet, domain, and onion identifiers; timestamps; source references; infrastructure fingerprints; candidate actor links; alerts; and attribution assessments. These values may be personal data, sensitive intelligence, or intentionally deceptive source material.

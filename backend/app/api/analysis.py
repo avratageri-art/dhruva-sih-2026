@@ -1,16 +1,41 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import Optional
 import sys, os
+from difflib import SequenceMatcher
+import json
+from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 
 from app.database import get_db
 from app.models.actor import Actor, Handle, PGPIdentifier, Wallet
 from app.models.intelligence import Post, OnionService, Domain, InfrastructureIndicator
-from app.models.analysis import Source, Relationship, AttributionAssessment
+from app.models.analysis import (
+    AssessmentAuditLog,
+    AttributionAssessment,
+    EvidenceItem,
+    Relationship,
+    Source,
+)
 
 router = APIRouter(tags=["Analysis"])
+
+
+def _project_asset(*parts):
+    module_path = Path(__file__).resolve()
+    candidates = [module_path.parents[3].joinpath(*parts), module_path.parents[2].joinpath(*parts)]
+    return next((candidate for candidate in candidates if candidate.exists()), candidates[0])
+
+
+@router.get("/evaluation")
+def get_evaluation_results():
+    """Return the reproducible synthetic benchmark output for the dashboard."""
+    results_path = _project_asset("data", "evaluation", "results.json")
+    try:
+        return json.loads(results_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise HTTPException(status_code=503, detail=f"Evaluation results unavailable: {exc}")
 
 
 # ─── Attribution Assessments ────────────────────────────────────────────────
@@ -35,6 +60,15 @@ def get_assessments(db: Session = Depends(get_db), skip: int = 0, limit: int = 5
             "explanation": aa.explanation,
             "evidence": aa.evidence_json,
             "negative_evidence": aa.negative_evidence_json,
+            "decision": (aa.evidence_json or {}).get("decision", "ABSTAIN"),
+            "abstain_reason": (aa.evidence_json or {}).get("abstain_reason", "INSUFFICIENT"),
+            "confidence_band": (aa.evidence_json or {}).get("confidence_band", aa.confidence_level),
+            "support": (aa.evidence_json or {}).get("support", 0.0),
+            "contradiction": (aa.evidence_json or {}).get("contradiction", 0.0),
+            "items": (aa.evidence_json or {}).get("items", []),
+            "gates_triggered": (aa.evidence_json or {}).get("gates_triggered", ["LEGACY_ASSESSMENT"]),
+            "degraded": (aa.evidence_json or {}).get("degraded", True),
+            "baseline": (aa.evidence_json or {}).get("baseline"),
             "created_at": aa.created_at.isoformat() if aa.created_at else None,
         })
     return result
@@ -51,7 +85,8 @@ def run_attribution(actor_a_id: int, actor_b_id: int, db: Session = Depends(get_
       3. Temporal histogram                       →  behavioural similarity
       4. Jaro-Winkler on handle sets              →  handle overlap score
       5. Jaccard on shared infrastructure         →  graph correlation
-      6. Weighted fusion                          →  final attribution score
+      6. Weighted fusion                          →  Baseline A only
+      7. Reliability/lineage/contradiction gates  →  supported or abstain
     """
     actor_a = db.query(Actor).filter(Actor.id == actor_a_id).first()
     actor_b = db.query(Actor).filter(Actor.id == actor_b_id).first()
@@ -70,6 +105,9 @@ def run_attribution(actor_a_id: int, actor_b_id: int, db: Session = Depends(get_
     pgps_b = [p.fingerprint for p in actor_b.pgp_identifiers]
 
     actor_a_data = {
+        "id":         actor_a_id,
+        "name":       actor_a.actor_name,
+        "created_at": actor_a.created_at.isoformat() if actor_a.created_at else None,
         "texts":      [p.content for p in posts_a if p.content],
         "timestamps": [p.timestamp.isoformat() for p in posts_a if p.timestamp],
         "handles":    handles_a,
@@ -78,6 +116,9 @@ def run_attribution(actor_a_id: int, actor_b_id: int, db: Session = Depends(get_
         "graph_score": 0.0,
     }
     actor_b_data = {
+        "id":         actor_b_id,
+        "name":       actor_b.actor_name,
+        "created_at": actor_b.created_at.isoformat() if actor_b.created_at else None,
         "texts":      [p.content for p in posts_b if p.content],
         "timestamps": [p.timestamp.isoformat() for p in posts_b if p.timestamp],
         "handles":    handles_b,
@@ -89,26 +130,101 @@ def run_attribution(actor_a_id: int, actor_b_id: int, db: Session = Depends(get_
     # ── Run AI engine ──────────────────────────────────────────────────────
     try:
         from app.services.ai.attribution import attribution_engine
-        score_pct, label, explanation = attribution_engine.assess_attribution(
+        baseline_score_pct, baseline_label, baseline_explanation = attribution_engine.assess_attribution(
             actor_a_data, actor_b_data
         )
         subsystem_scores = attribution_engine.get_subsystem_scores(
             actor_a_data, actor_b_data
         )
-        score = score_pct / 100.0
         ai_powered = True
     except Exception as e:
         # Fallback: handle overlap heuristic only
         overlap = len(set(handles_a) & set(handles_b))
-        score = min(0.99, 0.1 + overlap * 0.2)
-        label = "HIGH" if score >= 0.65 else "MODERATE" if score >= 0.5 else "LOW"
-        explanation = f"Heuristic fallback (AI engine unavailable: {str(e)[:80]})"
+        baseline_score_pct = round(min(0.99, 0.1 + overlap * 0.2) * 100, 1)
+        baseline_label = "HIGH" if baseline_score_pct >= 65 else "MODERATE" if baseline_score_pct >= 50 else "LOW"
+        baseline_explanation = f"Heuristic fallback (AI engine unavailable: {str(e)[:80]})"
         subsystem_scores = {
             "semantic": 0.0, "stylometric": 0.0,
             "behavioural": 0.0, "handle": float(overlap > 0),
             "graph": 0.0, "model": "fallback", "model_loaded": False,
         }
         ai_powered = False
+
+    # ── Reliability gate: atomic evidence, lineage, contradictions ─────────
+    from app.services.ai.reliability import reliability_engine
+
+    def persona_frequency(rows, value_field):
+        personas = {}
+        for row in rows:
+            value = getattr(row, value_field, None)
+            if value:
+                personas.setdefault(value.lower(), set()).add(row.actor_id)
+        return {value: len(actor_ids) for value, actor_ids in personas.items()}
+
+    handle_frequency = persona_frequency(db.query(Handle).all(), "handle")
+    pgp_frequency = persona_frequency(db.query(PGPIdentifier).all(), "fingerprint")
+    wallet_frequency = persona_frequency(db.query(Wallet).all(), "address")
+    frequencies = {
+        "handle": handle_frequency,
+        "pgp": pgp_frequency,
+        "wallet": wallet_frequency,
+    }
+    wallet_labels_path = _project_asset("config", "wallet_labels.json")
+    try:
+        wallet_labels = json.loads(wallet_labels_path.read_text(encoding="utf-8")).get("labels", {})
+    except (OSError, ValueError):
+        wallet_labels = {}
+    reliability_items = reliability_engine.build_evidence_items(
+        actor_a_data,
+        actor_b_data,
+        subsystem_scores,
+        frequencies=frequencies,
+        wallet_labels=wallet_labels,
+    )
+
+    # Matching posts remain separate rows until lineage collapse. Exact and
+    # near copies therefore count as one origin, regardless of mirror count.
+    for post_a in posts_a:
+        if not post_a.content or len(post_a.content.strip()) < 40:
+            continue
+        for post_b in posts_b:
+            if not post_b.content or len(post_b.content.strip()) < 40:
+                continue
+            similarity = SequenceMatcher(None, post_a.content.lower(), post_b.content.lower()).ratio()
+            if similarity >= 0.88:
+                for post, suffix in ((post_a, "a"), (post_b, "b")):
+                    reliability_items.append({
+                        "evidence_id": f"post-{post_a.id}-{post_b.id}-{suffix}",
+                        "type": "semantic",
+                        "subject_a": str(actor_a_id),
+                        "subject_b": str(actor_b_id),
+                        "value": post.content,
+                        "source_id": str(post.source_id or post.platform or "unknown"),
+                        "observed_at": post.timestamp.isoformat() if post.timestamp else None,
+                        "raw_ref": f"post:{post.id}",
+                        "quality": min(1.0, max(0.2, similarity)),
+                        "rarity": 0.7,
+                        "explanation": "Matching post content; mirrors collapse to one lineage origin.",
+                    })
+
+    reliability = reliability_engine.assess(
+        actor_a_data,
+        actor_b_data,
+        reliability_items,
+        degraded=not ai_powered,
+    )
+    effective_support = max(0.0, reliability["support"] - reliability["contradiction"])
+    score = min(0.99, effective_support / (effective_support + 1.0))
+    if reliability["decision"] == "ABSTAIN":
+        score = min(score, 0.49)
+    label = reliability["confidence_band"]
+    reason_text = (
+        f"Reliability decision: {reliability['decision']}"
+        + (f" ({reliability['abstain_reason']})" if reliability["abstain_reason"] else "")
+        + f"; support={reliability['support']:.3f}, contradiction={reliability['contradiction']:.3f}, "
+          f"independent origins={reliability['independent_origins']}."
+    )
+    explanation = f"{reason_text} Baseline A: {baseline_score_pct:.1f}% ({baseline_label}). {baseline_explanation}"
 
     evidence = {
         "semantic_similarity":    subsystem_scores.get("semantic", 0),
@@ -120,6 +236,26 @@ def run_attribution(actor_a_id: int, actor_b_id: int, db: Session = Depends(get_
         "model":                  subsystem_scores.get("model", "unknown"),
         "model_loaded":           subsystem_scores.get("model_loaded", False),
         "ai_powered":             ai_powered,
+        "decision":               reliability["decision"],
+        "abstain_reason":         reliability["abstain_reason"],
+        "confidence_band":        reliability["confidence_band"],
+        "support":                reliability["support"],
+        "contradiction":          reliability["contradiction"],
+        "independent_origins":    reliability["independent_origins"],
+        "items":                  reliability["items"],
+        "gates_triggered":        reliability["gates_triggered"],
+        "deception_flags":        reliability["deception_flags"],
+        "degraded":               reliability["degraded"],
+        "config_version":         reliability["config_version"],
+        "baseline": {
+            "method": "weighted_similarity",
+            "score": baseline_score_pct,
+            "confidence_level": baseline_label,
+        },
+    }
+    negative_evidence = {
+        "items": [item for item in reliability["items"] if item["direction"] == "contradict"],
+        "gates_triggered": reliability["gates_triggered"],
     }
 
     # ── Persist / update ───────────────────────────────────────────────────
@@ -133,6 +269,7 @@ def run_attribution(actor_a_id: int, actor_b_id: int, db: Session = Depends(get_
         existing.confidence_level = label
         existing.explanation = explanation
         existing.evidence_json = evidence
+        existing.negative_evidence_json = negative_evidence
         db.commit()
         assessment_id = existing.id
     else:
@@ -143,12 +280,38 @@ def run_attribution(actor_a_id: int, actor_b_id: int, db: Session = Depends(get_
             confidence_level=label,
             explanation=explanation,
             evidence_json=evidence,
-            negative_evidence_json={},
+            negative_evidence_json=negative_evidence,
         )
         db.add(assessment)
         db.commit()
         db.refresh(assessment)
         assessment_id = assessment.id
+
+    db.query(EvidenceItem).filter(EvidenceItem.assessment_id == assessment_id).delete()
+    for item in reliability["items"]:
+        db.add(EvidenceItem(
+            evidence_id=f"assessment-{assessment_id}-{item['evidence_id']}",
+            assessment_id=assessment_id,
+            evidence_type=item["type"],
+            subject_a=item["subject_a"],
+            subject_b=item["subject_b"],
+            value=item["value"],
+            source_id=item["source_id"],
+            content_hash=item["content_hash"],
+            origin_id=item["origin_id"],
+            is_derived=item["is_derived"],
+            raw_ref=item["raw_ref"],
+            direction=item["direction"],
+            weight=item["weight"],
+            details_json=item,
+        ))
+    db.add(AssessmentAuditLog(
+        assessment_id=assessment_id,
+        action="ASSESSED",
+        user="system",
+        details_json={"decision": reliability["decision"], "gates_triggered": reliability["gates_triggered"]},
+    ))
+    db.commit()
 
     return {
         "assessment_id":   assessment_id,
@@ -159,7 +322,56 @@ def run_attribution(actor_a_id: int, actor_b_id: int, db: Session = Depends(get_
         "explanation":     explanation,
         "evidence":        evidence,
         "ai_powered":      ai_powered,
+        "decision":        reliability["decision"],
+        "abstain_reason":  reliability["abstain_reason"],
+        "confidence_band": reliability["confidence_band"],
+        "support":         reliability["support"],
+        "contradiction":   reliability["contradiction"],
+        "items":           reliability["items"],
+        "gates_triggered": reliability["gates_triggered"],
+        "degraded":        reliability["degraded"],
+        "baseline":        evidence["baseline"],
     }
+
+
+@router.post("/assessments/{assessment_id}/override")
+def override_assessment(
+    assessment_id: int,
+    request: Request,
+    reason: str,
+    user: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """Record an analyst override without erasing the engine's original result."""
+    assessment = db.query(AttributionAssessment).filter(AttributionAssessment.id == assessment_id).first()
+    if not assessment:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    if len(reason.strip()) < 8:
+        raise HTTPException(status_code=422, detail="Override reason must be at least 8 characters")
+    audit_user = (user or request.headers.get("X-Analyst-ID") or getattr(request.state, "role", "analyst")).strip()
+    db.add(AssessmentAuditLog(
+        assessment_id=assessment_id,
+        action="ANALYST_OVERRIDE",
+        user=audit_user or "analyst",
+        reason=reason.strip(),
+        details_json={"original_decision": (assessment.evidence_json or {}).get("decision")},
+    ))
+    db.commit()
+    return {"assessment_id": assessment_id, "overridden": True, "user": audit_user, "reason": reason.strip()}
+
+
+@router.get("/assessments/{assessment_id}/audit")
+def assessment_audit(assessment_id: int, db: Session = Depends(get_db)):
+    entries = db.query(AssessmentAuditLog).filter(
+        AssessmentAuditLog.assessment_id == assessment_id
+    ).order_by(AssessmentAuditLog.created_at.desc()).all()
+    return [{
+        "action": entry.action,
+        "user": entry.user,
+        "reason": entry.reason,
+        "details": entry.details_json,
+        "created_at": entry.created_at.isoformat() if entry.created_at else None,
+    } for entry in entries]
 
 
 

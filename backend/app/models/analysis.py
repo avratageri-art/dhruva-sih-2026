@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey, JSON
+from sqlalchemy import Boolean, Column, Integer, String, Text, Float, DateTime, ForeignKey, JSON
 from datetime import datetime
 from app.database import Base
 
@@ -36,4 +36,41 @@ class AttributionAssessment(Base):
     evidence_json = Column(JSON)
     negative_evidence_json = Column(JSON)
     explanation = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class EvidenceItem(Base):
+    """Atomic evidence with provenance and lineage for independent corroboration."""
+    __tablename__ = "evidence_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    evidence_id = Column(String, unique=True, index=True)
+    assessment_id = Column(Integer, ForeignKey("attribution_assessments.id"), index=True)
+    evidence_type = Column(String, index=True)
+    subject_a = Column(String)
+    subject_b = Column(String)
+    value = Column(Text)
+    source_id = Column(String, index=True)
+    observed_at = Column(DateTime, nullable=True)
+    first_seen = Column(DateTime, nullable=True)
+    last_seen = Column(DateTime, nullable=True)
+    content_hash = Column(String, index=True)
+    origin_id = Column(String, index=True)
+    is_derived = Column(Boolean, default=False)
+    raw_ref = Column(String, nullable=True)
+    direction = Column(String, default="support")
+    weight = Column(Float, default=0.0)
+    details_json = Column(JSON, default=dict)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AssessmentAuditLog(Base):
+    __tablename__ = "assessment_audit_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    assessment_id = Column(Integer, ForeignKey("attribution_assessments.id"), index=True)
+    action = Column(String, index=True)
+    user = Column(String, default="system")
+    reason = Column(Text, nullable=True)
+    details_json = Column(JSON, default=dict)
     created_at = Column(DateTime, default=datetime.utcnow)

@@ -18,13 +18,37 @@ logger = logging.getLogger("WalletCluster")
 import re
 BTC_PATTERN = re.compile(r'\b(bc1[a-zA-HJ-NP-Z0-9]{25,39}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})\b')
 XMR_PATTERN = re.compile(r'\b4[0-9AB][1-9A-HJ-NP-Za-km-z]{93}\b')
+ETH_PATTERN = re.compile(r'\b0x[a-fA-F0-9]{40}\b')
 
 
 def extract_wallets_from_text(text: str) -> Dict[str, List[str]]:
-    """Extract BTC and XMR wallet addresses from text."""
+    """Extract and normalise BTC, ETH, and XMR wallet addresses from text."""
     btc = list(set(BTC_PATTERN.findall(text)))
     xmr = list(set(XMR_PATTERN.findall(text)))
-    return {"btc": btc, "xmr": xmr}
+    eth = list(set(address.lower() for address in ETH_PATTERN.findall(text)))
+    return {"btc": sorted(btc), "eth": sorted(eth), "xmr": sorted(xmr)}
+
+
+def classify_wallet(address: str, labels: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    """Validate a wallet and apply a transparent local classification label."""
+    value = (address or "").strip()
+    if BTC_PATTERN.fullmatch(value):
+        chain, normalised, privacy_coin = "BTC", value, False
+    elif ETH_PATTERN.fullmatch(value):
+        chain, normalised, privacy_coin = "ETH", value.lower(), False
+    elif XMR_PATTERN.fullmatch(value):
+        chain, normalised, privacy_coin = "XMR", value, True
+    else:
+        return {"valid": False, "address": value, "blockchain": None, "wallet_class": "unknown", "privacy_coin": False}
+    wallet_class = (labels or {}).get(normalised, (labels or {}).get(normalised.lower(), "personal"))
+    return {
+        "valid": True,
+        "address": normalised,
+        "blockchain": chain,
+        "wallet_class": wallet_class,
+        "privacy_coin": privacy_coin,
+        "caveat": "Privacy-coin transactions are not traced by this prototype." if privacy_coin else None,
+    }
 
 
 def cluster_wallets_from_observations(observations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

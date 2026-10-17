@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
 import { 
   Activity, Network, Clock, FileText, AlertTriangle, ShieldAlert, 
   Users, Search, Bell, Settings, Database, Server, Fingerprint, Map, 
-  ActivitySquare, HardDrive, RefreshCw, Radio
+  ActivitySquare, HardDrive, RefreshCw, Radio, BarChart3
 } from 'lucide-react'
 import axios from 'axios'
 
@@ -20,6 +20,7 @@ import CrawlerMonitoring from './pages/CrawlerMonitoring'
 import Models from './pages/Models'
 import Architecture from './pages/Architecture'
 import RobinSearch from './pages/RobinSearch'
+import Evaluation from './pages/Evaluation'
 
 // Dashboard Component
 const Dashboard = () => {
@@ -149,6 +150,7 @@ const Layout = ({ children }) => {
           <NavItem to="/investigations" icon={Search}>Investigations</NavItem>
           <NavItem to="/actors" icon={Users}>Actors</NavItem>
           <NavItem to="/persona-analysis" icon={Fingerprint}>Persona Analysis</NavItem>
+          <NavItem to="/evaluation" icon={BarChart3}>Evaluation</NavItem>
           <NavItem to="/graph" icon={Network}>Graph Intelligence</NavItem>
           <NavItem to="/timeline" icon={Clock}>Timeline</NavItem>
           
@@ -227,6 +229,7 @@ function App() {
           <Route path="/actors" element={<Actors />} />
           <Route path="/actors/:id" element={<ActorProfile />} />
           <Route path="/persona-analysis" element={<PersonaAnalysis />} />
+          <Route path="/evaluation" element={<Evaluation />} />
           <Route path="/graph" element={<GraphUI />} />
           <Route path="/timeline" element={<Timeline />} />
           <Route path="/infrastructure" element={<Infrastructure />} />
